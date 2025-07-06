@@ -7,3 +7,5 @@ var Dev_Redis string = "Dev_Redis"
 var QA string = "QA"
 var QA_DB string = "QA_DB"
 var QA_Redis string = "QA_Redis"
+
+var DB_Type string = "mysql"
