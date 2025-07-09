@@ -10,18 +10,18 @@ import (
 )
 
 type DBProcessorInterface interface {
-	AddUser()
-	ValidateUser()
+	AddUser(StructStore.UserData) (bool, error)
+	ValidateUser(StructStore.UserAuth) (bool, error)
 }
 
 type DBProcessor struct {
 	DBInstance *sql.DB
 }
 
-func NewDBProcessor(Wg *sync.WaitGroup) (*DBProcessor, error) {
+func NewDBProcessor(Wg *sync.WaitGroup, DbProc *DBProcessor) (*DBProcessor, error) {
 	defer Wg.Done()
 
-	newDBProcessor := DBProcessor{}
+	//newDBProcessor := DBProcessor{}
 
 	dbinst, err := Util.DBInitializer()
 
@@ -29,13 +29,13 @@ func NewDBProcessor(Wg *sync.WaitGroup) (*DBProcessor, error) {
 		return nil, err
 	}
 
-	newDBProcessor.DBInstance = dbinst
+	DbProc.DBInstance = dbinst
 
-	return &newDBProcessor, nil
+	return DbProc, nil
 
 }
 
-func (DbProc *DBProcessor) AddUser(UserDt StructStore.UserData) (bool, error) {
+func (DbProc DBProcessor) AddUser(UserDt StructStore.UserData) (bool, error) {
 
 	transactinst, err := DbProc.DBInstance.Begin()
 
@@ -66,7 +66,7 @@ func (DbProc *DBProcessor) AddUser(UserDt StructStore.UserData) (bool, error) {
 	return true, nil
 }
 
-func (DbProc *DBProcessor) ValidateUser(UserDt StructStore.UserAuth) (bool, error) {
+func (DbProc DBProcessor) ValidateUser(UserDt StructStore.UserAuth) (bool, error) {
 
 	resp := make([]StructStore.ValidateUserResponse, 1)
 
@@ -114,4 +114,8 @@ func (DbProc *DBProcessor) ValidateUser(UserDt StructStore.UserAuth) (bool, erro
 		return false, nil
 	}
 	return true, nil
+}
+
+func (DbProc DBProcessor) IsUserExist(UserDt StructStore.UserData) (bool, error) {
+
 }

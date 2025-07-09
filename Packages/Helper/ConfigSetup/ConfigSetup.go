@@ -8,6 +8,7 @@ import (
 
 var DbConnString string
 var RedisConnString string
+var JWTSecret string
 
 func InitateSetup(EnvType string) {
 	switch EnvType {
@@ -24,8 +25,15 @@ func InitateSetup(EnvType string) {
 			panic("Redis Connection String is not set as an environment variable.")
 		}
 
+		jwtSecret, isJwtSecret := os.LookupEnv(FieldName.Dev_Jwt_Secret)
+
+		if isJwtSecret != true {
+			panic("JWT Secret String is not set as an environment variable.")
+		}
+
 		DbConnString = dbConnString
 		RedisConnString = redisConnString
+		JWTSecret = jwtSecret
 
 	case FieldName.QA:
 
@@ -40,8 +48,15 @@ func InitateSetup(EnvType string) {
 			panic("Redis Connection String is not set as an environment variable.")
 		}
 
+		jwtSecret, isJwtSecret := os.LookupEnv(FieldName.QA_Jwt_Secret)
+
+		if isJwtSecret != true {
+			panic("JWT Secret String is not set as an environment variable.")
+		}
+
 		DbConnString = dbConnString
 		RedisConnString = redisConnString
+		JWTSecret = jwtSecret
 
 	}
 

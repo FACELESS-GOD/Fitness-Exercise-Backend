@@ -3,6 +3,7 @@ package Model
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"sync"
 	"time"
 
@@ -12,16 +13,19 @@ import (
 )
 
 type RedisProcessorInterface interface {
-	AddUser()
-	ValidateUser()
+	AddUser(*sync.WaitGroup, StructStore.UserData) (bool, error)
+	ValidateUser(StructStore.UserData) (bool, error)
 }
 
 type RedisProcessor struct {
-	RedisInst *redis.Client
+	RedisInst    *redis.Client
+	Ctx          context.Context
+	CallbackFunc context.CancelFunc
 }
 
-func NewRedisInstance() (*RedisProcessor, error) {
-	Inst := RedisProcessor{}
+func NewRedisInstance(WG *sync.WaitGroup, RedisProc *RedisProcessor) (*RedisProcessor, error) {
+	defer WG.Done()
+	//Inst := RedisProcessor{}
 
 	redisInst, err := Util.RedisInitializer()
 
@@ -29,12 +33,16 @@ func NewRedisInstance() (*RedisProcessor, error) {
 		return nil, err
 	}
 
-	Inst.RedisInst = redisInst
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 
-	return &Inst, nil
+	RedisProc.RedisInst = redisInst
+	RedisProc.Ctx = ctx
+	RedisProc.CallbackFunc = cancel
+
+	return RedisProc, nil
 }
 
-func (Red *RedisProcessor) AddUser(WG *sync.WaitGroup, UserDT StructStore.UserData) (bool, error) {
+func (Red RedisProcessor) AddUser(WG *sync.WaitGroup, UserDT StructStore.UserData) (bool, error) {
 	defer WG.Done()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
@@ -55,7 +63,7 @@ func (Red *RedisProcessor) AddUser(WG *sync.WaitGroup, UserDT StructStore.UserDa
 
 }
 
-func (Red *RedisProcessor) ValidateUser(UserDT StructStore.UserData) (bool, error) {
+func (Red RedisProcessor) ValidateUser(UserDT StructStore.UserData) (bool, error) {
 	var currUser StructStore.UserData
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -77,4 +85,18 @@ func (Red *RedisProcessor) ValidateUser(UserDT StructStore.UserData) (bool, erro
 	} else {
 		return true, nil
 	}
+}
+
+func (Red RedisProcessor) GetUserData(UserName string) (string, bool) {
+	val, err := Red.RedisInst.Get(Red.Ctx, UserName).Result()
+
+	switch {
+	case err == redis.Nil:
+		return "", false
+	case err != nil:
+		log.Println(err)
+		return "", false
+	}
+	return val, true
+
 }
