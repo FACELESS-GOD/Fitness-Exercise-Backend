@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"log"
-	"sync"
 	"time"
 
 	"github.com/FACELESS-GOD/Fitness-Exercise-Backend.git/Packages/Helper/StructStore"
@@ -13,8 +12,8 @@ import (
 )
 
 type RedisProcessorInterface interface {
-	AddUser(*sync.WaitGroup, StructStore.UserData) (bool, error)
-	ValidateUser(StructStore.UserData) (bool, error)
+	AddUser(StructStore.UserData) (bool, error)
+	ValidateUser(StructStore.UserAuth) (bool, error)
 }
 
 type RedisProcessor struct {
@@ -23,8 +22,8 @@ type RedisProcessor struct {
 	CallbackFunc context.CancelFunc
 }
 
-func NewRedisInstance(WG *sync.WaitGroup, RedisProc *RedisProcessor) (*RedisProcessor, error) {
-	defer WG.Done()
+func NewRedisInstance(RedisProc *RedisProcessor) (*RedisProcessor, error) {
+
 	//Inst := RedisProcessor{}
 
 	redisInst, err := Util.RedisInitializer()
@@ -42,8 +41,7 @@ func NewRedisInstance(WG *sync.WaitGroup, RedisProc *RedisProcessor) (*RedisProc
 	return RedisProc, nil
 }
 
-func (Red RedisProcessor) AddUser(WG *sync.WaitGroup, UserDT StructStore.UserData) (bool, error) {
-	defer WG.Done()
+func (Red RedisProcessor) AddUser(UserDT StructStore.UserData) (bool, error) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -63,7 +61,7 @@ func (Red RedisProcessor) AddUser(WG *sync.WaitGroup, UserDT StructStore.UserDat
 
 }
 
-func (Red RedisProcessor) ValidateUser(UserDT StructStore.UserData) (bool, error) {
+func (Red RedisProcessor) ValidateUser(UserDT StructStore.UserAuth) (bool, error) {
 	var currUser StructStore.UserData
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()

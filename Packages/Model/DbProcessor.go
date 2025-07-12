@@ -116,6 +116,3 @@ func (DbProc DBProcessor) ValidateUser(UserDt StructStore.UserAuth) (bool, error
 	return true, nil
 }
 
-func (DbProc DBProcessor) IsUserExist(UserDt StructStore.UserData) (bool, error) {
-
-}

@@ -1,6 +1,7 @@
 package Controller
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/FACELESS-GOD/Fitness-Exercise-Backend.git/Packages/Helper/StructStore"
@@ -22,14 +23,113 @@ func NewController(DbInst Model.DBProcessor, RedisInst Model.RedisProcessor) *Co
 	return &ctrlInst
 }
 
-func (Ctrl *ControllerStruct) AddUser(Writer http.ResponseWriter, Req *http.Request) {}
+func (Ctrl *ControllerStruct) AddUser(Writer http.ResponseWriter, Req *http.Request) {
+	newUser := &StructStore.UserData{}
 
-func (Ctrl *ControllerStruct) ValidateUser(Writer http.ResponseWriter, Req *http.Request) {}
+	Util.ParseBody(Req, newUser)
 
-func (Ctrl *ControllerStruct) addUserToDataStore(UserDT StructStore.UserData) error {
+	err := Ctrl.addUserToDB(*newUser)
+	if err != nil {
+		Ctrl.createErrorPayload(Writer)
+		return
+	}
+
+	err = Ctrl.addUserToDataStore(*newUser)
+
+	if err != nil {
+		Ctrl.createErrorPayload(Writer)
+		return
+	}
+
+	Ctrl.createCorrectPayload(Writer)
+	return
+}
+
+func (Ctrl *ControllerStruct) ValidateUser(Writer http.ResponseWriter, Req *http.Request) {
+	authDT := &StructStore.UserAuth{}
+	Util.ParseBody(Req, authDT)
+	isValid, err := Ctrl.validateUserfromDataStore(*authDT)
+
+	if err != nil {
+		log.Println(err)
+	}
+
+	if isValid == false {
+
+		isValid, err = Ctrl.validateUserfromDB(*authDT)
+		if err != nil {
+			log.Println(err)
+		}
+
+		if isValid != true {
+			Ctrl.createErrorPayload(Writer)
+			return
+		} else {
+			Ctrl.createCorrectPayload(Writer)
+			return
+		}
+
+	} else {
+		Ctrl.createCorrectPayload(Writer)
+		return
+	}
 
 }
 
-func (Ctrl *ControllerStruct) validateUserfromDataStore(UserDT StructStore.UserData) (bool, error) {
+func (Ctrl *ControllerStruct) addUserToDB(UserDT StructStore.UserData) error {
+	isDone, err := Ctrl.DbInst.AddUser(UserDT)
+	if err != nil {
+		return err
+	}
+	if isDone != true {
+		log.Default()
+	}
 
+	isDone, err = Ctrl.RedisInst.AddUser(UserDT)
+	if err != nil {
+		return err
+	}
+
+	return nil
+
+}
+
+func (Ctrl *ControllerStruct) addUserToDataStore(UserDT StructStore.UserData) error {
+
+	isDone, err := Ctrl.RedisInst.AddUser(UserDT)
+	if err != nil {
+		return err
+	}
+	if isDone != true {
+		log.Println()
+	}
+	return nil
+
+}
+
+func (Ctrl *ControllerStruct) validateUserfromDataStore(UserDT StructStore.UserAuth) (bool, error) {
+
+	isValid, err := Ctrl.DbInst.ValidateUser(UserDT)
+	if err != nil {
+		return isValid, err
+	}
+	return isValid, nil
+
+}
+
+func (Ctrl *ControllerStruct) validateUserfromDB(UserDT StructStore.UserAuth) (bool, error) {
+	isValid, err := Ctrl.RedisInst.ValidateUser(UserDT)
+	if err != nil {
+		return isValid, err
+	}
+	return isValid, nil
+
+}
+
+func (Ctrl *ControllerStruct) createErrorPayload(Writer http.ResponseWriter) {
+	Writer.WriteHeader(http.StatusInternalServerError)
+}
+
+func (Ctrl *ControllerStruct) createCorrectPayload(Writer http.ResponseWriter) {
+	Writer.WriteHeader(http.StatusOK)
 }
