@@ -1,6 +1,7 @@
 package Util
 
 import (
+	"errors"
 	"time"
 
 	"github.com/FACELESS-GOD/Fitness-Exercise-Backend.git/Packages/Helper/ConfigSetup"
@@ -11,7 +12,19 @@ import (
 type TokenProcessor struct {
 }
 
-func (TokenProc *TokenProcessor) CreateToken(UserDT StructStore.UserData) (string, error) {
+func (TokenProc *TokenProcessor) CreateToken(UserDT StructStore.UserData, Secret string) (string, error) {
+
+	if UserDT.Designation <= 0 {
+		err := errors.New("Invalid Data")
+		return "", err
+	} else if UserDT.UserName == "" {
+		err := errors.New("Invalid Data")
+		return "", err
+	} else if Secret == "" {
+		err := errors.New("Invalid Data")
+		return "", err
+	}
+
 	claims := jwt.MapClaims{
 		"UserName": UserDT.UserName,
 		"RoleID":   UserDT.Designation,
