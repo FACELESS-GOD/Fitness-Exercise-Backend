@@ -3,7 +3,9 @@ package Controller
 import (
 	"log"
 	"net/http"
+	"sync"
 
+	"github.com/FACELESS-GOD/Fitness-Exercise-Backend.git/Packages/Helper/ConfigSetup"
 	"github.com/FACELESS-GOD/Fitness-Exercise-Backend.git/Packages/Helper/StructStore"
 	"github.com/FACELESS-GOD/Fitness-Exercise-Backend.git/Packages/Model"
 	Util "github.com/FACELESS-GOD/Fitness-Exercise-Backend.git/Packages/Utility"
@@ -41,7 +43,21 @@ func (Ctrl *ControllerStruct) AddUser(Writer http.ResponseWriter, Req *http.Requ
 		return
 	}
 
+	tkn, err := Ctrl.TokenProc.CreateToken(*newUser, ConfigSetup.JWTSecret)
+	if err != nil {
+		log.Println(err)
+	}
+
+	wg := sync.WaitGroup{}
+
+	go Ctrl.DbInst.AddToken(&wg, newUser.UserName, tkn)
+	wg.Add(1)
+
+	go Ctrl.RedisInst.AddToken(&wg, newUser.UserName, tkn)
+	wg.Add(1)
+
 	Ctrl.createCorrectPayload(Writer)
+	wg.Wait()
 	return
 }
 

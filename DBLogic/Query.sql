@@ -1,7 +1,7 @@
-CREATE database AuthData ; 
+CREATE database AuthData_Test ; 
+use AuthData_Test ; 
 
 CREATE TABLE SEC_USER (
-	UserID 			long NOT NULL auto_increment,
     UserName        varchar(255) NOT NULL,
 	Password        varchar(255) NOT NULL,
 	Email           varchar(255),
@@ -12,5 +12,13 @@ CREATE TABLE SEC_USER (
 	AuthorizationId  long NOT NULL,
     IsValid boolean NOT NULL,
     Last_Modified_Date varchar(255) Not null,
-    Primary KEY (UserID)
+    Primary KEY (UserName)
 );
+
+CREATE TABLE Token_Store (	
+    UserName        varchar(255) NOT NULL,	
+	Token        varchar(255) NOT NULL,	
+    Last_Modified_Date varchar(255) Not null,
+    Primary KEY (UserName)
+);
+

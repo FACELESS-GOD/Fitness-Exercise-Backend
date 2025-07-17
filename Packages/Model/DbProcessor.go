@@ -2,9 +2,12 @@ package Model
 
 import (
 	"database/sql"
+	"errors"
 	"log"
 	"sync"
+	"time"
 
+	"github.com/FACELESS-GOD/Fitness-Exercise-Backend.git/Packages/Helper/ConfigSetup"
 	"github.com/FACELESS-GOD/Fitness-Exercise-Backend.git/Packages/Helper/StructStore"
 	Util "github.com/FACELESS-GOD/Fitness-Exercise-Backend.git/Packages/Utility"
 )
@@ -12,6 +15,7 @@ import (
 type DBProcessorInterface interface {
 	AddUser(StructStore.UserData) (bool, error)
 	ValidateUser(StructStore.UserAuth) (bool, error)
+	AddToken(*sync.WaitGroup, string, string)
 }
 
 type DBProcessor struct {
@@ -23,7 +27,7 @@ func NewDBProcessor(Wg *sync.WaitGroup, DbProc *DBProcessor) (*DBProcessor, erro
 
 	//newDBProcessor := DBProcessor{}
 
-	dbinst, err := Util.DBInitializer()
+	dbinst, err := Util.DBInitializer(ConfigSetup.DbConnString)
 
 	if err != nil {
 		return nil, err
@@ -37,6 +41,10 @@ func NewDBProcessor(Wg *sync.WaitGroup, DbProc *DBProcessor) (*DBProcessor, erro
 
 func (DbProc DBProcessor) AddUser(UserDt StructStore.UserData) (bool, error) {
 
+	if UserDt.AuthorizationId == 0 || UserDt.Designation == 0 || UserDt.UserName == "" || UserDt.Password == "" {
+		return false, errors.New("Invalid Data")
+	}
+
 	transactinst, err := DbProc.DBInstance.Begin()
 
 	if err != nil {
@@ -44,7 +52,7 @@ func (DbProc DBProcessor) AddUser(UserDt StructStore.UserData) (bool, error) {
 		return false, err
 	}
 
-	stm, err := transactinst.Prepare("INSERT INTO SEC_USER VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+	stm, err := transactinst.Prepare("INSERT INTO SEC_USER VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
 
 	if err != nil {
 		log.Println(err)
@@ -67,6 +75,9 @@ func (DbProc DBProcessor) AddUser(UserDt StructStore.UserData) (bool, error) {
 }
 
 func (DbProc DBProcessor) ValidateUser(UserDt StructStore.UserAuth) (bool, error) {
+	if UserDt.UserName == "" || UserDt.Password == "" {
+		return false, errors.New("Invalid Data.")
+	}
 
 	resp := make([]StructStore.ValidateUserResponse, 1)
 
@@ -116,3 +127,35 @@ func (DbProc DBProcessor) ValidateUser(UserDt StructStore.UserAuth) (bool, error
 	return true, nil
 }
 
+func (DbProc DBProcessor) AddToken(Wg *sync.WaitGroup, UserName string, Token string) {
+	defer Wg.Done()
+
+	transactinst, err := DbProc.DBInstance.Begin()
+
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	stm, err := transactinst.Prepare("INSERT INTO Token_Store VALUES (?, ?, ?)")
+
+	if err != nil {
+		log.Println(err)
+		transactinst.Rollback()
+		return
+	}
+
+	stm.Exec(UserName, Token, time.Now().String())
+
+	err_transactinst := transactinst.Commit()
+
+	if err_transactinst != nil {
+		log.Println(err)
+		transactinst.Rollback()
+		return
+	}
+
+	stm.Close()
+	return
+
+}

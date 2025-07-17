@@ -3,9 +3,12 @@ package Model
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log"
+	"sync"
 	"time"
 
+	"github.com/FACELESS-GOD/Fitness-Exercise-Backend.git/Packages/Helper/ConfigSetup"
 	"github.com/FACELESS-GOD/Fitness-Exercise-Backend.git/Packages/Helper/StructStore"
 	Util "github.com/FACELESS-GOD/Fitness-Exercise-Backend.git/Packages/Utility"
 	"github.com/go-redis/redis/v8"
@@ -14,6 +17,7 @@ import (
 type RedisProcessorInterface interface {
 	AddUser(StructStore.UserData) (bool, error)
 	ValidateUser(StructStore.UserAuth) (bool, error)
+	AddToken(*sync.WaitGroup, string, string)
 }
 
 type RedisProcessor struct {
@@ -22,11 +26,11 @@ type RedisProcessor struct {
 	CallbackFunc context.CancelFunc
 }
 
-func NewRedisInstance(RedisProc *RedisProcessor) (*RedisProcessor, error) {
-
+func NewRedisInstance(Wg *sync.WaitGroup, RedisProc *RedisProcessor) (*RedisProcessor, error) {
+	defer Wg.Done()
 	//Inst := RedisProcessor{}
 
-	redisInst, err := Util.RedisInitializer()
+	redisInst, err := Util.RedisInitializer(ConfigSetup.RedisConenction)
 
 	if err != nil {
 		return nil, err
@@ -42,6 +46,9 @@ func NewRedisInstance(RedisProc *RedisProcessor) (*RedisProcessor, error) {
 }
 
 func (Red RedisProcessor) AddUser(UserDT StructStore.UserData) (bool, error) {
+	if UserDT.AuthorizationId == 0 || UserDT.Designation == 0 || UserDT.UserName == "" || UserDT.Password == "" {
+		return false, errors.New("Invalid Data")
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -62,6 +69,9 @@ func (Red RedisProcessor) AddUser(UserDT StructStore.UserData) (bool, error) {
 }
 
 func (Red RedisProcessor) ValidateUser(UserDT StructStore.UserAuth) (bool, error) {
+	if UserDT.UserName == "" || UserDT.Password == "" {
+		return false, errors.New("Invalid Data.")
+	}
 	var currUser StructStore.UserData
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -72,7 +82,7 @@ func (Red RedisProcessor) ValidateUser(UserDT StructStore.UserAuth) (bool, error
 		return false, err
 	}
 
-	err = json.Unmarshal([]byte(val), currUser)
+	err = json.Unmarshal([]byte(val), &currUser)
 
 	if err != nil {
 		return false, err
@@ -86,6 +96,9 @@ func (Red RedisProcessor) ValidateUser(UserDT StructStore.UserAuth) (bool, error
 }
 
 func (Red RedisProcessor) GetUserData(UserName string) (string, bool) {
+	if UserName == "" {
+		return "", false
+	}
 	val, err := Red.RedisInst.Get(Red.Ctx, UserName).Result()
 
 	switch {
@@ -96,5 +109,16 @@ func (Red RedisProcessor) GetUserData(UserName string) (string, bool) {
 		return "", false
 	}
 	return val, true
+
+}
+
+func (Red RedisProcessor) AddToken(Wg *sync.WaitGroup, UserName string, Token string) {
+	defer Wg.Done()
+	err := Red.RedisInst.Set(Red.Ctx, Token, UserName, time.Hour).Err()
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	return
 
 }
